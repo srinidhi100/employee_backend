@@ -1,208 +1,112 @@
-const express = require("express")
-const cors = require("cors")
-const mysql = require('mysql')
-const app = express();
-// const mongoose = require("mongoose")
-const dotenv = require("dotenv")
-
-dotenv.config({ path: require('find-config')('.env') })
-// const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_SECRET = process.env.JWT_SECRET
-// const URL = 'mongodb://srinidhirocks12:KcQag9ix0WlY8V9k@ac-d3etyjy-shard-00-00.fzfrz1o.mongodb.net:27017,ac-d3etyjy-shard-00-01.fzfrz1o.mongodb.net:27017,ac-d3etyjy-shard-00-02.fzfrz1o.mongodb.net:27017/?ssl=true&replicaSet=atlas-12og5e-shard-0&authSource=admin&retryWrites=true&w=majority'
-//const URL = (`${process.env.START_MONGO}${process.env.MONGO_USERNAME}:${process.env.MONGO_PASSWORD}${process.env.END_MONGO}${process.env.DB_NAME}${process.env.LAST_MONGO}`)
-// console.log('URL', URL)
-
+const express = require("express");
+const cors = require("cors");
 const { v4: uuidv4 } = require('uuid');
+const { Pool } = require('pg');
+const dotenv = require("dotenv");
 
+dotenv.config({ path: require('find-config')('.env') });
 
+const app = express();
 
-
-// mongoose.connect(URL, {
-//     useNewUrlParser: true,
-//     useUnifiedTopology: true
-// }).then(() => console.log('Connected!')).catch((err) => console.log('error', err));
-
-// const employeeModule = require('./models/employee_details.js')
-
-
-const db = mysql.createConnection({
-    host: "localhost",
-    user: 'root',
-    password: "",
-    database: "machoodb"
-})
-
-
-app.use(express.json())
-
+app.use(express.json());
 app.use(cors({
     origin: '*',
-    // credentials: true,
-    // exposedHeaders: ['Set-Cookie']
-}))
+}));
 
-// app.set("trust proxy", 1);
+const pool = new Pool({
+    connectionString: 'postgres://user24:Zg6nx4EIbRrdwdp9aXnBgV9SeT8lFEsP@dpg-cnbhks8l5elc73fl66kg-a.oregon-postgres.render.com/machoodb24',
+    ssl: {
+        rejectUnauthorized: false // Disable SSL certificate validation (not recommended for production)
+    }
+});
 
+app.get("/", async (req, res) => {
+    try {
+        // const sql = "CREATE TABLE IF NOT EXISTS employee (_id SERIAL PRIMARY KEY, name VARCHAR(100), department VARCHAR(100), dob VARCHAR(100),gender VARCHAR(100), designation VARCHAR(255), salary INT)";
+        // await pool.query(sql);
+        // res.json({ message: "Employee Table created successfully" });
+        res.json({ message: "Hello from backend" });
 
-app.get("/", (req, res) => {
-    res.send("Hello World From BACKEND");
-})
-//Create a employee
+        // const sqlDelete = "DROP TABLE IF EXISTS employee";
+        // await pool.query(sqlDelete);
+        // res.json({ message: "Employee Table deleted successfully" });
+    } catch (error) {
+        console.error("Error creating table:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+// });
+
+// Create an employee
 app.post("/createEmployee", async (req, res) => {
     try {
         const uuid = uuidv4();
-        console.log("uuid",typeof(uuid))
-        console.log("sdadsadasdasda", req.body.name)
-        const sql = `INSERT INTO employee (name,department,dob,gender,designation,salary,_id) VALUES (?,?,?,?,?,?,?)` ;
-        const insertValues =[ req.body.name ,  req.body.department ,  req.body.dob ,  req.body.gender ,  req.body.designation ,  req.body.salary , uuid ]
-        // Generate a UUID
-        // console.log('Generated UUID:', uuid);
-        // const insertValues = [req.body.name, req.body.department, req.body.dob, req.body.gender, req.body.designation, req.body.salary, uuid];
-        db.query(sql,insertValues, (err, data) => {
-            if (err) { res.status(500).json({ message: err }) }
-            res.send(data)
-        })
-        // const newemployeeModule = new employeeModule({
-        //     name: req.body.name,
-        //     department: req.body.department,
-        //     dob: req.body.dob,
-        //     gender: req.body.gender,
-        //     designation: req.body.designation,
-        //     salary: req.body.salary
-        // })
-        // newemployeeModule.save().then((docs) => {
-        //     res.send({ message: "Success ceated", employeeId: docs._id })
-        // }).catch((err) => { console.log("Erroer:", err) })
-
+        const insertValues = [req.body.name, req.body.department, req.body.dob, req.body.gender, req.body.designation, req.body.salary];
+        const sql = `INSERT INTO employee (name, department, dob, gender, designation, salary) VALUES ($1, $2, $3, $4, $5, $6)`;
+        const result = await pool.query(sql, insertValues);
+        res.json({ message: "Employee created successfully", result : result });
     } catch (error) {
-        console.log("error", error)
-        res.status(500).json({ message: error })
+        console.error("Error creating employee:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
-})
+});
 
-// All employee data
-app.get("/employeeData/", async (req, res) => {
+// Fetch all employee data
+app.get("/employeeData", async (req, res) => {
     try {
-        console.log("req.params,", req.params)
-        console.log("req.query,", req.query)
-        // MONGO DB -->>
-        // employeeModule.find({ })
-        //     .then((docs) => {
-        //         console.log("docs",docs)
-        //         res.send({ message: "Success", tabledocs: docs })
-        //     })
-
-
-        //SQL
         const sql = "SELECT * FROM employee";
-        db.query(sql, (err, data) => {
-            if (err) return res.status(500).json({ message: err })
-            res.send(data)
-        })
+        const result = await pool.query(sql);
+        // console.log("RESULT", result)
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Error fetching employee data:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
-    catch (error) {
-        res.status(500).json({ message: error })
-    }
-})
-
-//One employee data (To View)
+});
+ 
+// Fetch one employee's data by ID
 app.get("/employee/:id", async (req, res) => {
     try {
-        console.log("Id of the emmployee")
-        console.log("req.params,", typeof(req.params.id))
-        console.log("req.query,", req.query)
-
-        // employeeModule.find({ _id: req.params.id })
-        //     .then((docs) => {
-        //         console.log("docs", docs)
-        //         res.send({ message: "Success", tabledocs: docs })
-        //     })
-        const sql = `SELECT * FROM employee WHERE _id = ?`;
-        const sqlQueryid =  req.params.id;
-        db.query(sql,sqlQueryid, (err, data) => {
-            if (err) {return res.status(500).json({ message: err})}
-            res.status(200).json(data)
-        })
+        const sql = "SELECT * FROM employee WHERE _id = $1";
+        // console.log("req.params.id",req.params.id)
+        const result = await pool.query(sql, [req.params.id]);
+        if (result.rows.length === 0) {
+            res.status(404).json({ message: "Employee not found" });
+        } else {
+            // console.log("result",result)
+            res.json(result.rows[0]);
+        }
+    } catch (error) {
+        console.error("Error fetching employee data:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
-    catch (error) {
-        res.status(500).json({ message: error })
-    }
-})
+});
 
-//Edit or delete one employee data
-
-// Update 1 Document
-app.post("/editEmployee/:id", async (req, res) => {
+// Update an employee's data
+app.put("/editEmployee/:id", async (req, res) => {
     try {
-        // employeeModule.updateOne(
-        //     // Filter criteria
-        //     { _id: req.params.id },
-        //     // Update data
-        //     {
-        //         $set: {
-        //             name: req.body.name,
-        //             department: req.body.department,
-        //             dob: req.body.dob,
-        //             gender: req.body.gender,
-        //             designation: req.body.designation,
-        //             salary: req.body.salary
-        //         }
-        //     }
-        // )
-        //     .then(result => {
-        //         res.status(200).json({ message: "Successfully Edited" })
-        //         console.log(`Matched count: ${result.matchedCount}`);
-        //         console.log(`Modified count: ${result.modifiedCount}`);
-        //     })
-        //     .catch(error => {
-        //         console.error('Error occurred:', error);
-        //     })
-        const sql = `UPDATE employee SET name = ?, department = ?, dob = ?, gender = ?, designation = ?,salary = ? WHERE _id = ?`;
+        const sql = `UPDATE employee SET name = $1, department = $2, dob = $3, gender = $4, designation = $5, salary = $6 WHERE _id = $7`;
         const updateValues = [req.body.name, req.body.department, req.body.dob, req.body.gender, req.body.designation, req.body.salary, req.params.id];
-        db.query(sql, updateValues, (err, data) => {
-            if (err) {
-                console.log("ERRORRR: ", err);
-                return res.status(500).json({ message: err })
-            }
-            res.send(data)
-        })
-
+        await pool.query(sql, updateValues);
+        res.json({ message: "Employee updated successfully" });
     } catch (error) {
-        console.log("error", error)
-        res.status(500).json({ message: error })
+        console.error("Error updating employee:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
-})
+});
 
-//Delete deleteEmployee
-app.put("/deleteEmployee/:id", async (req, res) => {
+// Delete an employee
+app.delete("/deleteEmployee/:id", async (req, res) => {
     try {
-        console.log("DELETE", req)
-        // employeeModule.deleteOne(
-        //     // Filter criteria
-        //     { _id: req.params.id }
-        // )
-        //     .then(result => {
-        //         console.log(`Deleted count: ${result.deletedCount}`);
-        //         res.status(200).json({ message: "Successfully deleted" })
-        //     })
-        //     .catch(error => {
-        //         console.error('Error occurred:', error);
-        //     })
-        const sql = `DELETE FROM employee WHERE _id = ${req.params.id}`
-        db.query(sql, (err, data) => {
-            if (err) {
-                console.log("ERRORRR: ", err);
-                return res.status(500).json({ message: err })
-            }
-            res.send(data)
-        })
+        const sql = "DELETE FROM employee WHERE _id = $1";
+        await pool.query(sql, [req.params.id]);
+        res.json({ message: "Employee deleted successfully" });
     } catch (error) {
-        console.log("error", error)
-        res.status(500).json({ message: error })
+        console.error("Error deleting employee:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
-})
+});
 
-app.listen(process.env.PORT || 4000, async () => {
-    console.log("Server Starrted");
-
-})
+app.listen(process.env.PORT || 4000, () => {
+    console.log("Server Started");
+});

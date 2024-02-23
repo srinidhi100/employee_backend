@@ -14,7 +14,7 @@ app.use(cors({
 }));
 
 const pool = new Pool({
-    connectionString: 'postgres://user24:Zg6nx4EIbRrdwdp9aXnBgV9SeT8lFEsP@dpg-cnbhks8l5elc73fl66kg-a.oregon-postgres.render.com/machoodb24',
+    connectionString: `${process.env.DBURL}`,
     ssl: {
         rejectUnauthorized: false // Disable SSL certificate validation (not recommended for production)
     }
